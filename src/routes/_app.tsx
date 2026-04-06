@@ -1,0 +1,17 @@
+import Footer from "#/components/Footer";
+import Header from "#/components/Header";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+
+export const Route = createFileRoute('/_app')({
+    component: App,
+});
+
+function App() {
+    return (
+        <div>
+            <Header />
+            <Outlet />
+            <Footer />
+        </div>
+    );
+}

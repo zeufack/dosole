@@ -38,7 +38,7 @@ src/routes/
     review.tsx                        → /review (placeholder)
     challenge.tsx                     → /challenge (placeholder)
     achievements.tsx                  → /achievements (placeholder)
-    tools.tsx                         → /tools (placeholder)
+    tools.tsx                         → /tools ✅ renders Metronome
     settings.tsx                      → /settings (placeholder)
     help.tsx                          → /help (placeholder)
 ```
@@ -59,7 +59,8 @@ component
 ### State management
 - **TanStack Query** — server/async data (modules, dashboard)
 - **Zustand** (`src/store/progress.ts`) — client global state (XP, level, streak)
-- **useState** — local UI state (feedback overlay visibility)
+- **useState** — local UI state (feedback overlay, metronome controls)
+- **useRef** — mutable values that shouldn't trigger re-renders (Tone.js objects, beat counter)
 
 ### Query keys
 - `['dashboard']` — full dashboard data
@@ -81,44 +82,62 @@ component
 ### Store (`src/store/progress.ts`)
 - State: `xp`, `xpForCurrentLevel`, `xpForNextLevel`, `level`, `streak`
 - Actions: `addXp(amount)`
-- Initial values match mock data
 
-### Components (`src/components/dashboard/`)
-- `HeroCard` — reads XP/level/streak from Zustand store, name/goal from props
-- `JournalList` — last 3 entries, dividers, design tokens
-- `ModuleMap` — status icons, Link for unlocked, opacity-50 for locked
-- `NextModuleCard` — next module CTA
-- `statusIcon.ts` — shared `Record<ModuleStatus, string>` (emoji placeholders → Lucide later)
+### Components
+- `src/components/dashboard/` — HeroCard, JournalList, ModuleMap, NextModuleCard, statusIcon.ts
+- `src/components/tools/Metronome.tsx` ← IN PROGRESS (see below)
+
+## Metronome — current status
+
+File: `src/components/tools/Metronome.tsx`
+
+State: `bpm` (80), `isPlaying`, `beatPerBar` (4), `accentOnFirstBeat` (true), `currentBeat` (0)
+Refs: `synthRef`, `loopRef`
+
+**What works:**
+- UI: slider, beats buttons (2/3/4/6), accent toggle, start/stop button
+- Tone.Synth and Loop are created on play
+- `Tone.start()` is called (required by browsers)
+
+**Four bugs to fix before continuing:**
+
+1. **Transport never starts/stops** — missing `Tone.getTransport().start()` on play and `Tone.getTransport().stop()` + dispose on stop
+2. **BPM slider doesn't update Tone** — need `useEffect(() => { Tone.getTransport().bpm.value = bpm }, [bpm])`
+3. **Stale closure bug** — `accentOnFirstBeat` and `currentBeat` inside the loop callback are stale. Fix: use `beatCountRef = useRef(0)` to track beat inside the loop, `setCurrentBeat` only for UI
+4. **Missing cleanup useEffect** — dispose synth, loop, stop Transport on unmount
+
+## Next step
+
+Fix the four metronome bugs listed above, then add Tap BPM functionality.
+
+## Tap BPM concept (for when bugs are fixed)
+- Store timestamps of last few taps in a ref
+- Calculate average interval between taps
+- Convert to BPM: `bpm = 60000 / avgInterval`
+- Reset if gap between taps > 2 seconds
 
 ## Key concepts learned
 - File-based routing, path string conventions
-- `routeTree.gen.ts` — auto-generated, never edit
-- Pathless layout routes (`_app.tsx`)
-- Dynamic segments (`$moduleId`)
-- `<Outlet />`, `activeProps`, `activeOptions`
+- Pathless layout routes, dynamic segments, `<Outlet />`
+- `activeProps`, `activeOptions` on `<Link>`
 - Named exports for components
 - Types before UI
 - `Route.useParams()` — must be inside component (Rules of Hooks)
 - Route loaders — run on server (SSR) and client (navigation)
 - TanStack Query — loader warms cache, `useSuspenseQuery` reads it
 - Zustand — global state for gameplay values
-- `useEffect` with empty deps — run once on mount
-- When NOT to use `useEffect` (data fetching → use Query instead)
-- When NOT to use Zustand (local UI state → use useState)
+- `useRef` — mutable box, no re-render (Tone.js objects, counters)
+- Stale closure problem in callbacks — use refs instead of state
+- `useEffect` cleanup — return a function to run on unmount
+- When NOT to use `useEffect` (data fetching → Query)
+- When NOT to use Zustand (local UI state → useState)
 
 ## Pending
+- Tap BPM
 - Replace emoji status icons with Lucide icons
-- Persist Zustand state to localStorage (zustand/middleware)
-- Onboarding flow (multi-step form state)
+- Persist Zustand state to localStorage
+- Onboarding flow
 - Journal calendar view (deferred)
 - Real database (PostgreSQL) + Zod validation
-- Stripe — later
-- VexFlow music notation — later
-- Tone.js audio — later
-
-## Next step
-Candidate directions:
-A — Persist Zustand to localStorage so XP survives refresh
-B — Onboarding flow (multi-step form state, new concept)
-C — Replace emoji icons with Lucide
-D — Start building real screens (Tools page with metronome)
+- Stripe, VexFlow, full audio tools — later
+- UI polish pass (after all screens functional)

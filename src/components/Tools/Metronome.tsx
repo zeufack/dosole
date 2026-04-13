@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import * as Tone from 'tone'
 
 export function Metronome() {
@@ -8,6 +8,8 @@ export function Metronome() {
     const [beatPerBar, setBeatPerBar] = useState(4);
     const [accentOnFirstBeat, setAccentOnFirstBeat] = useState(true);
     const [currentBeat, setCurrentBeat] = useState(0);
+    const beatCountRef = useRef(0);
+    const beatPerBarRef = useRef(beatPerBar)
 
 
     const synthRef = useRef<Tone.Synth | null>(null)
@@ -15,7 +17,12 @@ export function Metronome() {
 
     const togglePlay = async () => {
         if (isPlaying) {
-            loopRef.current?.stop();
+            // loopRef.current?.stop();
+            Tone.getTransport().stop();
+            loopRef.current?.dispose();
+            loopRef.current = null;
+            synthRef.current?.dispose();
+            synthRef.current = null;
             setCurrentBeat(0);
         } else {
             if (!synthRef.current) {
@@ -23,16 +30,34 @@ export function Metronome() {
             }
             if (!loopRef.current) {
                 loopRef.current = new Tone.Loop(time => {
-                    const isAccent = accentOnFirstBeat && currentBeat === 0;
-                    synthRef.current?.triggerAttackRelease(isAccent ? "C4" : "G3", "8n", time);
-                    setCurrentBeat(prev => (prev + 1) % beatPerBar);
+                    const isAccent = accentOnFirstBeat && beatCountRef.current === 0
+                    synthRef.current?.triggerAttackRelease(isAccent ? 'C5' : 'C4', '16n', time)
+                    beatCountRef.current = (beatCountRef.current + 1) % beatPerBarRef.current
+                    setCurrentBeat(beatCountRef.current)
                 }, "4n");
             }
             await Tone.start();
             loopRef.current.start(0);
+            Tone.getTransport().start();
         }
         setIsPlaying(!isPlaying);
     };
+
+    useEffect(() => {
+        Tone.getTransport().bpm.value = bpm;
+    }, [bpm]);
+
+    useEffect(() => {
+        beatPerBarRef.current = beatPerBar
+    }, [beatPerBar])
+
+    useEffect(() => {
+        return () => {
+            loopRef.current?.dispose()
+            synthRef.current?.dispose()
+            Tone.getTransport().stop()
+        }
+    }, [])
 
     return (
         <div className="island-shell">

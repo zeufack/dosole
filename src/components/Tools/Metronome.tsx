@@ -1,4 +1,4 @@
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Tone from 'tone'
 
 export function Metronome() {
@@ -10,6 +10,8 @@ export function Metronome() {
     const [currentBeat, setCurrentBeat] = useState(0);
     const beatCountRef = useRef(0);
     const beatPerBarRef = useRef(beatPerBar)
+    const tapTimestampsRef = useRef<number[]>([])
+    const accentOnFirstBeatRef = useRef(accentOnFirstBeat)
 
 
     const synthRef = useRef<Tone.Synth | null>(null)
@@ -17,7 +19,6 @@ export function Metronome() {
 
     const togglePlay = async () => {
         if (isPlaying) {
-            // loopRef.current?.stop();
             Tone.getTransport().stop();
             loopRef.current?.dispose();
             loopRef.current = null;
@@ -30,7 +31,7 @@ export function Metronome() {
             }
             if (!loopRef.current) {
                 loopRef.current = new Tone.Loop(time => {
-                    const isAccent = accentOnFirstBeat && beatCountRef.current === 0
+                    const isAccent = accentOnFirstBeatRef.current && beatCountRef.current === 0
                     synthRef.current?.triggerAttackRelease(isAccent ? 'C5' : 'C4', '16n', time)
                     beatCountRef.current = (beatCountRef.current + 1) % beatPerBarRef.current
                     setCurrentBeat(beatCountRef.current)
@@ -43,9 +44,33 @@ export function Metronome() {
         setIsPlaying(!isPlaying);
     };
 
+    const handleTap = () => {
+        const now = Date.now();
+        const taps = tapTimestampsRef.current;
+
+        if (taps.length > 0 && now - taps[taps.length - 1] > 2000) {
+            tapTimestampsRef.current = [];
+        }
+        tapTimestampsRef.current.push(now);
+        if (tapTimestampsRef.current.length > 8) {
+            tapTimestampsRef.current = tapTimestampsRef.current.slice(-8);
+        }
+        if (tapTimestampsRef.current.length > 1) {
+            const taps = tapTimestampsRef.current;
+            const intervals = taps.slice(1).map((t, i) => t - taps[i]);
+            const averageInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+            const newBpm = Math.round(60000 / averageInterval);
+            setBpm(newBpm);
+        }
+    }
+
     useEffect(() => {
         Tone.getTransport().bpm.value = bpm;
     }, [bpm]);
+
+    useEffect(() => {
+        accentOnFirstBeatRef.current = accentOnFirstBeat
+    }, [accentOnFirstBeat])
 
     useEffect(() => {
         beatPerBarRef.current = beatPerBar
@@ -85,6 +110,7 @@ export function Metronome() {
                     <input type="checkbox" id="accentOnFirstBeat" checked={accentOnFirstBeat} onChange={(e) => setAccentOnFirstBeat(e.target.checked)} />
                 </div>
                 <button onClick={() => togglePlay()}>{isPlaying ? "Stop" : "Start"}</button>
+                <button onClick={() => handleTap()}>Tap Tempo</button>
             </div>
         </div>
     );

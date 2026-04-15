@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware'
 
 type ProgressState = {
     xp: number;
@@ -9,7 +10,7 @@ type ProgressState = {
     addXp: (amount: number) => void;
 }
 
-export const useProgressStore = create<ProgressState>((set) => ({
+export const useProgressStore = create<ProgressState>()(persist((set) => ({
     xp: 1200,
     addXp: (amount) => set((state) => ({
         xp: state.xp + amount,
@@ -18,4 +19,4 @@ export const useProgressStore = create<ProgressState>((set) => ({
     xpForNextLevel: 1500,
     level: 5,
     streak: 7,
-}));
+}), {name: 'dosol-progress'}));

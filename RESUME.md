@@ -24,8 +24,8 @@ src/routes/
   __root.tsx                          ← HTML shell, QueryClientProvider, theme script
   index.tsx                           → / (redirects to /dashboard)
   onboarding/
-    index.tsx                         → /onboarding (placeholder)
-    motivation.tsx                    → /onboarding/motivation (placeholder)
+    index.tsx                         → /onboarding ✅ built (name input, redirects to /dashboard if already onboarded)
+    motivation.tsx                    → /onboarding/motivation ✅ built (goal picker, saves to store, redirects to /dashboard)
   _app.tsx                            ← pathless layout: Header + Outlet + Footer
   _app/
     dashboard.tsx                     → /dashboard ✅ fully built
@@ -58,7 +58,7 @@ component
 
 ### State management
 - **TanStack Query** — server/async data (modules, dashboard)
-- **Zustand** (`src/store/progress.ts`) — client global state (XP, level, streak)
+- **Zustand** (`src/store/progress.ts`) — client global state (XP, level, streak, name, goal, hasCompletedOnboarding)
 - **useState** — local UI state (feedback overlay, metronome controls)
 - **useRef** — mutable values that shouldn't trigger re-renders (Tone.js objects, beat counter)
 
@@ -80,41 +80,21 @@ component
 - `src/data/module.ts` — `getModuleById(id)`
 
 ### Store (`src/store/progress.ts`)
-- State: `xp`, `xpForCurrentLevel`, `xpForNextLevel`, `level`, `streak`
-- Actions: `addXp(amount)`
+- State: `xp`, `xpForCurrentLevel`, `xpForNextLevel`, `level`, `streak`, `name`, `goal`, `hasCompletedOnboarding`
+- Actions: `addXp(amount)`, `completeOnboarding(name, goal)`
+- Persisted to localStorage via Zustand `persist` middleware under key `'dosol-progress'`
 
 ### Components
-- `src/components/dashboard/` — HeroCard, JournalList, ModuleMap, NextModuleCard, statusIcon.ts
-- `src/components/tools/Metronome.tsx` ← IN PROGRESS (see below)
+- `src/components/dashboard/` — HeroCard, JournalList, ModuleMap, NextModuleCard, statusIcon.ts (Lucide icons)
+- `src/components/Tools/Metronome.tsx` ✅ complete
 
-## Metronome — current status
+## Metronome — complete
 
-File: `src/components/tools/Metronome.tsx`
+File: `src/components/Tools/Metronome.tsx`
 
-State: `bpm` (80), `isPlaying`, `beatPerBar` (4), `accentOnFirstBeat` (true), `currentBeat` (0)
-Refs: `synthRef`, `loopRef`
+Features: BPM slider, beats per bar (2/3/4/6), accent on first beat, visual beat indicator, Start/Stop, Tap Tempo (capped at 8 taps, resets after 2s gap).
 
-**What works:**
-- UI: slider, beats buttons (2/3/4/6), accent toggle, start/stop button
-- Tone.Synth and Loop are created on play
-- `Tone.start()` is called (required by browsers)
-
-**Four bugs to fix before continuing:**
-
-1. **Transport never starts/stops** — missing `Tone.getTransport().start()` on play and `Tone.getTransport().stop()` + dispose on stop
-2. **BPM slider doesn't update Tone** — need `useEffect(() => { Tone.getTransport().bpm.value = bpm }, [bpm])`
-3. **Stale closure bug** — `accentOnFirstBeat` and `currentBeat` inside the loop callback are stale. Fix: use `beatCountRef = useRef(0)` to track beat inside the loop, `setCurrentBeat` only for UI
-4. **Missing cleanup useEffect** — dispose synth, loop, stop Transport on unmount
-
-## Next step
-
-Fix the four metronome bugs listed above, then add Tap BPM functionality.
-
-## Tap BPM concept (for when bugs are fixed)
-- Store timestamps of last few taps in a ref
-- Calculate average interval between taps
-- Convert to BPM: `bpm = 60000 / avgInterval`
-- Reset if gap between taps > 2 seconds
+All stale closure bugs fixed — `accentOnFirstBeat`, `beatPerBar` synced via refs.
 
 ## Key concepts learned
 - File-based routing, path string conventions
@@ -126,18 +106,24 @@ Fix the four metronome bugs listed above, then add Tap BPM functionality.
 - Route loaders — run on server (SSR) and client (navigation)
 - TanStack Query — loader warms cache, `useSuspenseQuery` reads it
 - Zustand — global state for gameplay values
+- Zustand `persist` middleware — persists state to localStorage, double-parentheses pattern for TypeScript
 - `useRef` — mutable box, no re-render (Tone.js objects, counters)
 - Stale closure problem in callbacks — use refs instead of state
 - `useEffect` cleanup — return a function to run on unmount
 - When NOT to use `useEffect` (data fetching → Query)
 - When NOT to use Zustand (local UI state → useState)
+- `validateSearch` — typed URL search params in TanStack Router
+- `beforeLoad` + `throw redirect()` — route guards (runs on server + client)
+- `useProgressStore.getState()` — read Zustand store outside React components
+- `useNavigate` + `navigate({ to, search })` — programmatic navigation with typed params
+- Lucide icons — export component references from a map, render with capital-letter variable
+
+## Next step
+
+**UI polish pass** — go screen by screen and apply proper Tailwind styling. Start with the onboarding screens (they have no styling yet), then tools, then dashboard components.
 
 ## Pending
-- Tap BPM
-- Replace emoji status icons with Lucide icons
-- Persist Zustand state to localStorage
-- Onboarding flow
+- UI polish pass ← NEXT
 - Journal calendar view (deferred)
 - Real database (PostgreSQL) + Zod validation
 - Stripe, VexFlow, full audio tools — later
-- UI polish pass (after all screens functional)

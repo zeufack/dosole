@@ -7,7 +7,11 @@ type ProgressState = {
     xpForNextLevel: number;
     level: number;
     streak: number;
+    name: string;
+    goal: string;
+    hasCompletedOnboarding: boolean;
     addXp: (amount: number) => void;
+    completeOnboarding: (name: string, goal: string) => void;
 }
 
 export const useProgressStore = create<ProgressState>()(persist((set) => ({
@@ -19,4 +23,13 @@ export const useProgressStore = create<ProgressState>()(persist((set) => ({
     xpForNextLevel: 1500,
     level: 5,
     streak: 7,
-}), {name: 'dosol-progress'}));
+    name: '',
+    goal: '',
+    hasCompletedOnboarding: false,
+    completeOnboarding: (name, goal) => set({
+        name: name,
+        goal: goal,
+        hasCompletedOnboarding: true
+    })
+
+}), { name: 'dosol-progress' }));
